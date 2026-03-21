@@ -1,121 +1,106 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { auth, db } from './firebaseConfig';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
+
+import Layout from './components/Layout';
+import Login from './components/Login';
+import Dashboard from './pages/Dashboard';
+import WorkerManagement from './pages/WorkerManagement';
+import PricingManager from './pages/PricingManager';
+import CustomerManagement from './pages/CustomerManagement';
+import JobManagement from './pages/JobManagement';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setLoading(true);
+      if (currentUser) {
+        // Database එකේ admin කෙනෙක්ද කියලා check කරනවා
+        const isAllowed = await checkAdminStatus(currentUser.email);
+
+        if (isAllowed) {
+          setUser(currentUser);
+          setIsAdmin(true);
+        } else {
+
+          alert("ACCESS DENIED: Internal Command Registry Only.");
+          await signOut(auth);
+          setUser(null);
+          setIsAdmin(false);
+        }
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const checkAdminStatus = async (email) => {
+    if (!email) return false;
+    try {
+      const cleanEmail = email.toLowerCase().trim();
+      const q = query(collection(db, "admins"), where("email", "==", cleanEmail));
+      const querySnapshot = await getDocs(q);
+      return !querySnapshot.empty;
+    } catch (error) {
+      console.error("Critical Auth Error:", error);
+      return false;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+        {/* Loading Spinner/Effect */}
+        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+        <div className="text-indigo-500 font-black uppercase text-[10px] tracking-[0.3em] animate-pulse italic">
+          TECHNI SYSTEM INITIALIZING...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+
+    <BrowserRouter basename="/admin">
+      <Routes>
+
+
+        <Route
+          path="/login"
+          element={user && isAdmin ? <Navigate to="/" replace /> : <Login />}
+        />
+
+
+        <Route
+          path="/"
+          element={user && isAdmin ? <Layout /> : <Navigate to="/login" replace />}
         >
-          Count is {count}
-        </button>
-      </section>
+          {/* Default Page (techni.live/admin/) */}
+          <Route index element={<Dashboard />} />
 
-      <div className="ticks"></div>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+          <Route path="workers" element={<WorkerManagement />} />
+          <Route path="pricing" element={<PricingManager />} />
+          <Route path="customers" element={<CustomerManagement />} />
+          <Route path="jobs" element={<JobManagement />} />
+        </Route>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <Route path="*" element={<Navigate to="/" replace />} />
+
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
