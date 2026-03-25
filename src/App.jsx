@@ -22,7 +22,7 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
       if (currentUser) {
-        // Database එකේ admin කෙනෙක්ද කියලා check කරනවා
+        
         const isAllowed = await checkAdminStatus(currentUser.email);
 
         if (isAllowed) {
