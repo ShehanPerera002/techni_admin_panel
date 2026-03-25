@@ -15,6 +15,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Database එක Export කරනවා අනිත් පේජ් වලට (Dashboard, Pricing) ගන්න පුළුවන් වෙන්න
+
 export const db = getFirestore(app);
 export const auth = getAuth(app);
